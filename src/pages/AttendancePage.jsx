@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
     Calendar as CalendarIcon,
     CheckCircle,
@@ -35,6 +35,7 @@ const AttendancePage = () => {
     });
     const [submitting, setSubmitting] = useState(false);
     const [filterEmployeeId, setFilterEmployeeId] = useState('');
+    const dateInputRef = useRef(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -146,16 +147,29 @@ const AttendancePage = () => {
                     <h2 className="text-3xl font-bold tracking-tight text-slate-800">Attendance Dashboard</h2>
                     <p className="text-slate-500 mt-1">Monitor daily workforce presence and statistics.</p>
                 </div>
-                <div className="relative group">
+                <div
+                    className="relative group cursor-pointer"
+                    onClick={() => {
+                        if (dateInputRef.current) {
+                            try {
+                                dateInputRef.current.showPicker();
+                            } catch (e) {
+                                // Fallback if browser doesn't support showPicker
+                                dateInputRef.current.focus();
+                            }
+                        }
+                    }}
+                >
                     <input
+                        ref={dateInputRef}
                         type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        className="absolute bottom-0 right-0 w-0 h-0 opacity-0 pointer-events-none"
                     />
                     <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm transition-colors group-hover:border-indigo-300 group-hover:shadow-md relative z-0">
                         <CalendarIcon size={18} className="text-indigo-500" />
-                        <span className="text-sm font-semibold text-slate-700">
+                        <span className="text-sm font-semibold text-slate-700 select-none">
                             {selectedDate === getTodayString() ? 'Today: ' : ''}
                             {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
                         </span>
