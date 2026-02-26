@@ -16,15 +16,21 @@ import {
 } from 'lucide-react';
 import api from '../api/useService';
 
+const getTodayString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const AttendancePage = () => {
     const [employees, setEmployees] = useState([]);
     const [allRecords, setAllRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(getTodayString());
 
     const [formData, setFormData] = useState({
         employee: '',
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayString(),
         status: 'Present'
     });
     const [submitting, setSubmitting] = useState(false);
@@ -84,25 +90,23 @@ const AttendancePage = () => {
 
     // Calculate Dashboard Stats
     const stats = useMemo(() => {
-        const today = new Date().toISOString().split('T')[0];
-
-        // Find today's unique records (use the most recent record per employee if duplicates exist)
-        const todayRecordsMap = new Map();
+        // Find records for the selected date (use the most recent record per employee if duplicates exist)
+        const dateRecordsMap = new Map();
         allRecords.forEach(record => {
-            // Take only the date part to compare with today's date
+            // Take only the date part to compare
             const recordDate = record.date.split('T')[0];
-            if (recordDate === today) {
-                todayRecordsMap.set(String(record.employee_id), record);
+            if (recordDate === selectedDate) {
+                dateRecordsMap.set(String(record.employee_id), record);
             }
         });
 
-        const todayLogs = Array.from(todayRecordsMap.values());
+        const selectedLogs = Array.from(dateRecordsMap.values());
 
-        const presentCount = todayLogs.filter(r => r.status === 'Present').length;
-        const absentCount = todayLogs.filter(r => r.status === 'Absent').length;
+        const presentCount = selectedLogs.filter(r => r.status === 'Present').length;
+        const absentCount = selectedLogs.filter(r => r.status === 'Absent').length;
         const totalEmployees = employees.length;
         const attendanceRate = totalEmployees > 0 ? Math.round((presentCount / totalEmployees) * 100) : 0;
-        const pendingCount = Math.max(0, totalEmployees - todayLogs.length);
+        const pendingCount = Math.max(0, totalEmployees - selectedLogs.length);
 
         return {
             totalEmployees,
@@ -111,13 +115,16 @@ const AttendancePage = () => {
             attendanceRate,
             pendingCount
         };
-    }, [allRecords, employees]);
+    }, [allRecords, employees, selectedDate]);
 
     // Frontend Filtering
     const filteredRecords = useMemo(() => {
-        if (!filterEmployeeId) return allRecords;
-        return allRecords.filter(record => String(record.employee_id) === String(filterEmployeeId));
-    }, [allRecords, filterEmployeeId]);
+        let filtered = allRecords.filter(record => record.date.split('T')[0] === selectedDate);
+        if (filterEmployeeId) {
+            filtered = filtered.filter(record => String(record.employee_id) === String(filterEmployeeId));
+        }
+        return filtered;
+    }, [allRecords, filterEmployeeId, selectedDate]);
 
     const getStatusStyles = (status) => {
         if (status === 'Present') return {
@@ -139,11 +146,20 @@ const AttendancePage = () => {
                     <h2 className="text-3xl font-bold tracking-tight text-slate-800">Attendance Dashboard</h2>
                     <p className="text-slate-500 mt-1">Monitor daily workforce presence and statistics.</p>
                 </div>
-                <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
-                    <CalendarIcon size={18} className="text-indigo-500" />
-                    <span className="text-sm font-semibold text-slate-700">
-                        Today: {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                    </span>
+                <div className="relative group">
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm transition-colors group-hover:border-indigo-300 group-hover:shadow-md relative z-0">
+                        <CalendarIcon size={18} className="text-indigo-500" />
+                        <span className="text-sm font-semibold text-slate-700">
+                            {selectedDate === getTodayString() ? 'Today: ' : ''}
+                            {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -272,7 +288,7 @@ const AttendancePage = () => {
                                         <input
                                             type="date"
                                             name="date"
-                                            max={new Date().toISOString().split('T')[0]}
+                                            max={getTodayString()}
                                             value={formData.date}
                                             onChange={handleInputChange}
                                             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-800 cursor-pointer"
@@ -353,7 +369,7 @@ const AttendancePage = () => {
                                 <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
                                     <Clock size={18} />
                                 </div>
-                                Recent Logs
+                                Logs for {selectedDate === getTodayString() ? 'Today' : new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </h3>
 
                             <div className="relative w-full sm:w-auto">
